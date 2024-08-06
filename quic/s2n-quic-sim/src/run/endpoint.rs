@@ -5,6 +5,7 @@ use super::{events, CliRange};
 use s2n_quic::{
     client::Connect,
     provider::{
+        congestion_controller::{Bbr, Cubic},
         event::tracing::Subscriber as Tracing,
         io::testing::{primary, rand, spawn, time, Handle, Result},
     },
@@ -52,6 +53,7 @@ pub fn client(
         .with_io(handle.builder().build().unwrap())?
         .with_tls(certificates::CERT_PEM)?
         .with_event((events, Tracing::default()))?
+        .with_congestion_controller(Bbr::default())?
         .start()?;
 
     let mut total_delay = core::time::Duration::ZERO;
