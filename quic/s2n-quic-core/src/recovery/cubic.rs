@@ -239,7 +239,7 @@ impl CongestionController for CubicCongestionController {
 
         self.time_of_last_sent_packet = Some(time_sent);
 
-        eprintln!("event:on_packet_sent,time_sent:{:?},bytes_in_flight:{:?},congestion_window:{:?}", time_sent, self.bytes_in_flight, self.congestion_window());
+        eprintln!("event:on_packet_sent,time_sent:{},bytes_in_flight:{:?},congestion_window:{:?}", time_sent, &*self.bytes_in_flight, self.congestion_window());
         self.pacer.on_packet_sent(
             time_sent,
             bytes_sent,
@@ -282,7 +282,7 @@ impl CongestionController for CubicCongestionController {
             self.state = State::congestion_avoidance(now);
             self.cubic.on_slow_start_exit(self.congestion_window);
         }
-        eprintln!("event:on_rtt_update,time_sent:{:?},now:{:?},bytes_in_flight:{:?},congestion_window:{:?}", time_sent, now, self.bytes_in_flight, self.congestion_window());
+        eprintln!("event:on_rtt_update,time_sent:{},now:{},bytes_in_flight:{:?},congestion_window:{:?}", time_sent, now, &*self.bytes_in_flight, self.congestion_window());
     }
 
     #[inline]
@@ -303,7 +303,7 @@ impl CongestionController for CubicCongestionController {
 
         if self.under_utilized {
             self.state.on_app_limited(ack_receive_time);
-            eprintln!("event:on_ack,newest_acked_time_sent:{:?},bytes_acknowledged:{:?},ack_receive_time:{:?},bytes_in_flight:{:?},congestion_window:{:?}", newest_acked_time_sent, bytes_acknowledged, ack_receive_time, self.bytes_in_flight, self.congestion_window());
+            eprintln!("event:on_ack,newest_acked_time_sent:{},bytes_acknowledged:{:?},ack_receive_time:{},bytes_in_flight:{:?},congestion_window:{:?}", newest_acked_time_sent, bytes_acknowledged, ack_receive_time, &*self.bytes_in_flight, self.congestion_window());
 
             //= https://www.rfc-editor.org/rfc/rfc9002#section-7.8
             //# When bytes in flight is smaller than the congestion window and
@@ -340,7 +340,7 @@ impl CongestionController for CubicCongestionController {
 
         if self.congestion_window >= max_cwnd {
             // The window is already larger than the max, so we can return early
-            eprintln!("event:on_ack,newest_acked_time_sent:{:?},bytes_acknowledged:{:?},ack_receive_time:{:?},bytes_in_flight:{:?},congestion_window:{:?}", newest_acked_time_sent, bytes_acknowledged, ack_receive_time, self.bytes_in_flight, self.congestion_window());
+            eprintln!("event:on_ack,newest_acked_time_sent:{},bytes_acknowledged:{:?},ack_receive_time:{},bytes_in_flight:{:?},congestion_window:{:?}", newest_acked_time_sent, bytes_acknowledged, ack_receive_time, &*self.bytes_in_flight, self.congestion_window());
             return;
         }
 
@@ -387,7 +387,7 @@ impl CongestionController for CubicCongestionController {
             }
         };
 
-        eprintln!("event:on_ack,newest_acked_time_sent:{:?},bytes_acknowledged:{:?},ack_receive_time:{:?},bytes_in_flight:{:?},congestion_window:{:?}", newest_acked_time_sent, bytes_acknowledged, ack_receive_time, self.bytes_in_flight, self.congestion_window());
+        eprintln!("event:on_ack,newest_acked_time_sent:{},bytes_acknowledged:{:?},ack_receive_time:{},bytes_in_flight:{:?},congestion_window:{:?}", newest_acked_time_sent, bytes_acknowledged, ack_receive_time, &*self.bytes_in_flight, self.congestion_window());
         debug_assert!(self.congestion_window >= self.cubic.minimum_window());
     }
 
@@ -423,7 +423,7 @@ impl CongestionController for CubicCongestionController {
             self.state = State::SlowStart;
             self.cubic.reset();
         }
-        eprintln!("event:on_packet_lost,timestamp:{:?},lost_bytes:{:?},persistent_congestion:{:?},new_loss_burst:{:?},bytes_in_flight:{:?},congestion_window:{:?}", timestamp, lost_bytes, persistent_congestion, _new_loss_burst, self.bytes_in_flight, self.congestion_window());
+        eprintln!("event:on_packet_lost,timestamp:{},lost_bytes:{:?},persistent_congestion:{:?},new_loss_burst:{:?},bytes_in_flight:{:?},congestion_window:{:?}", timestamp, lost_bytes, persistent_congestion, _new_loss_burst, &*self.bytes_in_flight, self.congestion_window());
     }
 
     #[inline]
@@ -443,7 +443,7 @@ impl CongestionController for CubicCongestionController {
         //# Experienced (CE) codepoint in the IP header as a signal of
         //# congestion.
         self.on_congestion_event(event_time);
-        eprintln!("event:on_explicit_congestion,event_time:{:?},bytes_in_flight:{:?},congestion_window:{:?}", event_time, self.bytes_in_flight, self.congestion_window());
+        eprintln!("event:on_explicit_congestion,event_time:{},bytes_in_flight:{:?},congestion_window:{:?}", event_time, &*self.bytes_in_flight, self.congestion_window());
     }
 
     //= https://www.rfc-editor.org/rfc/rfc8899#section-3
