@@ -1,10 +1,10 @@
 [sim]
 connections = "1"
-delay = "10ms..50ms"
-drop_rate = 0.5
-max_inflight = 1000
+delay = "100ms"
+drop_rate = 0.1
+max_inflight = 10000000
 iterations = 10
-stream_data = 10
+stream_data = 100000000
 
 [report.tx-packets]
 filters = ["conn.success", "conn.client"]
