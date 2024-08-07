@@ -4,7 +4,9 @@
 /// Example of a print subscriber which can print all events or only
 /// connection related events.
 pub mod print_event {
-    use s2n_quic::provider::{event, event::ConnectionMeta};
+    use s2n_quic::provider::event;
+    use s2n_quic::provider::event::{ConnectionMeta};
+    use s2n_quic::provider::event::events::{PacketLost, PacketSent, AckRangeReceived };
 
     #[derive(Debug, Clone)]
     pub struct MyPrintSubscriber {
@@ -27,29 +29,56 @@ pub mod print_event {
         }
 
         /// This event fires for all events.
-        fn on_event<M: event::Meta + core::fmt::Debug, E: event::Event + core::fmt::Debug>(
-            &mut self,
-            meta: &M,
-            event: &E,
-        ) {
-            if self.print_all_events {
-                println!("event: {:?} {:?}", meta, event);
-            }
-        }
+        // fn on_event<M: event::Meta + core::fmt::Debug, E: event::Event + core::fmt::Debug>(
+        //     &mut self,
+        //     meta: &M,
+        //     event: &E,
+        // ) {
+        //     if self.print_all_events {
+        //         println!("event: {:?} {:?}", meta, event);
+        //     }
+        // }
 
-        /// This event fires only for connection-level events. Excluded are events which
-        /// happen prior to connection creation, e.g. `on_version_information`,
-        /// `on_endpoint_datagram_drop`.
-        fn on_connection_event<E: event::Event + core::fmt::Debug>(
+        fn on_packet_sent(
             &mut self,
             context: &mut Self::ConnectionContext,
             meta: &ConnectionMeta,
-            event: &E,
+            event: &PacketSent,
         ) {
-            if self.print_connection_events {
-                println!("connection_event: {:?} {:?} {:?}", context, meta, event);
-            }
+            println!("on_packet_sent {:?} {:?} {:?}", context, meta, event);
         }
+
+        fn on_packet_lost(
+            &mut self,
+            context: &mut Self::ConnectionContext,
+            meta: &ConnectionMeta,
+            event: &PacketLost<'_>,
+        ) {
+            println!("on_packet_lost {:?} {:?} {:?}", context, meta, event);
+        }
+
+        fn on_ack_range_received(
+            &mut self,
+            context: &mut Self::ConnectionContext,
+            meta: &ConnectionMeta,
+            event: &AckRangeReceived<'_>,
+        ) {
+            println!("on_ack_range_received {:?} {:?} {:?}", context, meta, event);
+        }
+
+        // This event fires only for connection-level events. Excluded are events which
+        // happen prior to connection creation, e.g. `on_version_information`,
+        // `on_endpoint_datagram_drop`.
+        // fn on_connection_event<E: event::Event + core::fmt::Debug>(
+        //     &mut self,
+        //     context: &mut Self::ConnectionContext,
+        //     meta: &ConnectionMeta,
+        //     event: &E,
+        // ) {
+        //     if self.print_connection_events {
+        //         println!("connection_event: {:?} {:?} {:?}", context, meta, event);
+        //     }
+        // }
     }
 }
 

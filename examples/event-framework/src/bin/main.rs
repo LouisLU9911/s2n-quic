@@ -31,17 +31,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
         // which can be used read data from the connection context.
         // - connection.query_event_context_mut: yields a mutable reference to the connection
         // context which can be used to read and write data to the connection context.
-        query_event::MyQuerySubscriber,
+        // query_event::MyQuerySubscriber,
         (
             // Our custom print subscriber allows us to print events to stdout.
             print_event::MyPrintSubscriber {
-                print_all_events: true,
-                print_connection_events: false,
+                print_all_events: false,
+                print_connection_events: true,
             },
             // The tracing subscriber will allow applications to configure and use
             // [tracing](https://docs.rs/tracing/latest/tracing/) for instrumentation.
             s2n_quic::provider::event::tracing::Subscriber::default(),
-        ),
+        )
     );
     // Build an `s2n_quic::Server`
     let mut server = Server::builder()
@@ -61,9 +61,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         // The application can mutably access the connection context and modify data on
         // the context itself.
         if connection_count > 5 {
-            connection.query_event_context_mut(|context: &mut query_event::MyQueryContext| {
-                context.count_non_data_packets = false;
-            })?;
+            // connection.query_event_context_mut(|context: &mut query_event::MyQueryContext| {
+            //     context.count_non_data_packets = false;
+            // })?;
         } else {
             connection_count += 1;
         }
@@ -75,12 +75,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
         // for a detailed explanation on how a query is executed on composed subscribers.
         //
         // The application can immutably access the connection context and read data from it.
-        connection.query_event_context(|context: &query_event::MyQueryContext| {
-            println!(
-                "{:?} data packets have been processed",
-                context.packet_sent_count
-            )
-        })?;
+        // connection.query_event_context(|context: &query_event::MyQueryContext| {
+        //     println!(
+        //         "{:?} data packets have been processed",
+        //         context.packet_sent_count
+        //     )
+        // })?;
 
         // spawn a new task for the connection
         tokio::spawn(async move {
