@@ -239,7 +239,7 @@ impl CongestionController for CubicCongestionController {
 
         self.time_of_last_sent_packet = Some(time_sent);
 
-        eprintln!("event:on_packet_sent,time_sent:{},bytes_in_flight:{:?},congestion_window:{:?}", time_sent, &*self.bytes_in_flight, self.congestion_window());
+        eprintln!("event:on_packet_sent,time_sent:{},under_utilized:{},bytes_in_flight:{:?},congestion_window:{:?}", time_sent, self.under_utilized, &*self.bytes_in_flight, self.congestion_window());
         self.pacer.on_packet_sent(
             time_sent,
             bytes_sent,
@@ -282,7 +282,7 @@ impl CongestionController for CubicCongestionController {
             self.state = State::congestion_avoidance(now);
             self.cubic.on_slow_start_exit(self.congestion_window);
         }
-        eprintln!("event:on_rtt_update,time_sent:{},now:{},bytes_in_flight:{:?},congestion_window:{:?}", time_sent, now, &*self.bytes_in_flight, self.congestion_window());
+        eprintln!("event:on_rtt_update,time_sent:{},under_utilized:{},now:{},bytes_in_flight:{:?},congestion_window:{:?}", time_sent, self.under_utilized, now, &*self.bytes_in_flight, self.congestion_window());
     }
 
     #[inline]
