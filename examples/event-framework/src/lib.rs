@@ -6,7 +6,8 @@
 pub mod print_event {
     use s2n_quic::provider::event;
     use s2n_quic::provider::event::{ConnectionMeta};
-    use s2n_quic::provider::event::events::{PacketLost, PacketSent, AckRangeReceived };
+    use s2n_quic::provider::event::events::{PacketLost, PacketSent, AckRangeReceived, RecoveryMetrics };
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     #[derive(Debug, Clone)]
     pub struct MyPrintSubscriber {
@@ -16,8 +17,13 @@ pub mod print_event {
         pub print_connection_events: bool,
     }
 
+    #[derive(Debug, Clone)]
+    pub struct MyEventContext {
+        id: u128,
+    }
+
     impl event::Subscriber for MyPrintSubscriber {
-        type ConnectionContext = ();
+        type ConnectionContext = MyEventContext;
 
         /// Initialize the Connection Context.
         fn create_connection_context(
@@ -25,7 +31,13 @@ pub mod print_event {
             meta: &ConnectionMeta,
             info: &event::ConnectionInfo,
         ) -> Self::ConnectionContext {
-            println!("{:?} {:?}", meta, info);
+            let start = SystemTime::now();
+            let since_the_epoch = start
+                .duration_since(UNIX_EPOCH)
+                .expect("Time went backwards");
+            let in_ms = since_the_epoch.as_millis();
+            println!("{:?} {:?} {:?}", in_ms, meta, info);
+            MyEventContext { id: in_ms}
         }
 
         /// This event fires for all events.
@@ -66,19 +78,28 @@ pub mod print_event {
             println!("on_ack_range_received {:?} {:?} {:?}", context, meta, event);
         }
 
+        fn on_recovery_metrics(
+            &mut self,
+            context: &mut Self::ConnectionContext,
+            meta: &ConnectionMeta,
+            event: &RecoveryMetrics<'_>,
+        ) {
+            println!("on_recovery_metrics {:?} {:?} {:?}", context, meta, event);
+        }
+
         // This event fires only for connection-level events. Excluded are events which
         // happen prior to connection creation, e.g. `on_version_information`,
         // `on_endpoint_datagram_drop`.
-        // fn on_connection_event<E: event::Event + core::fmt::Debug>(
-        //     &mut self,
-        //     context: &mut Self::ConnectionContext,
-        //     meta: &ConnectionMeta,
-        //     event: &E,
-        // ) {
-        //     if self.print_connection_events {
-        //         println!("connection_event: {:?} {:?} {:?}", context, meta, event);
-        //     }
-        // }
+        fn on_connection_event<E: event::Event + core::fmt::Debug>(
+            &mut self,
+            context: &mut Self::ConnectionContext,
+            meta: &ConnectionMeta,
+            event: &E,
+        ) {
+            if self.print_connection_events {
+                println!("connection_event: {:?} {:?} {:?}", context, meta, event);
+            }
+        }
     }
 }
 

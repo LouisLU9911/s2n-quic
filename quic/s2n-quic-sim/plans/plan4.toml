@@ -1,11 +1,17 @@
 [sim]
-connections = "5"
+# vary the number of inflight packets allowed from 1 to 1000
+max_inflight = 1000
+# open 1 connections
+connections = 1
+# perform the simulation once
+iterations = 1
+# open 5 steams
+streams = 5
+# send 100MB of data on each stream
+stream_data = 100000000
+
 delay = "200ms"
 drop_rate = 0.2
-max_inflight = 10000000
-iterations = 1
-streams = 1
-stream_data = 100000000
 
 [report.tx-packets]
 filters = ["conn.success", "conn.client"]
