@@ -109,6 +109,7 @@ impl Run {
                 .for_each(|_| {
                     use ::rand::prelude::*;
                     let seed = thread_rng().gen();
+                    eprintln!("seed from thread:{}", seed);
                     test(seed);
                 });
         } else {
@@ -116,6 +117,7 @@ impl Run {
             events::close();
 
             for seed in self.seed.iter().copied() {
+                eprintln!("seed:{}", seed);
                 test(seed);
             }
         }

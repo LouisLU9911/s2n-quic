@@ -1,0 +1,50 @@
+[sim]
+# vary the number of inflight packets allowed from 1 to 1000
+max_inflight = {{ max_inflight }}
+# open 1 connection
+connections = {{ connections }}
+# perform the simulation once
+iterations = {{ iterations }}
+# open 5 streams
+streams = {{ streams }}
+# send 500MB of data on each stream
+stream_data = {{ stream_data }}
+# e.g. 200ms
+delay = "{{ delay }}"
+# e.g. 0.2
+drop_rate = {{ drop_rate }}
+
+[report.tx-packets]
+filters = ["conn.success", "conn.client"]
+x = "net.delay"
+y = "conn.tx.packets"
+
+[report.rtt-spread]
+filters = ["conn.success", "conn.client"]
+x = "net.delay"
+y = "conn.rtt-spread"
+
+[report.min-rtt]
+filters = ["conn.success", "conn.client"]
+x = "net.delay"
+y = "conn.min-rtt"
+
+[report.max-rtt]
+filters = ["conn.success", "conn.client"]
+x = "net.delay"
+y = "conn.max-rtt"
+
+[report.lost-packets]
+filters = ["conn.success", "conn.client"]
+x = "net.delay"
+y = "conn.lost.packets"
+
+[report.tx-throughput]
+filters = ["conn.success", "conn.client"]
+x = "net.delay"
+y = "conn.tx.stream-throughput"
+
+[report.congestion-window]
+filters = ["conn.success", "conn.client"]
+x = "net.delay"
+y = "conn.max-cwin"

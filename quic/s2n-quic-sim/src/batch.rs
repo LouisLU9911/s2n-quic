@@ -32,6 +32,7 @@ pub struct Batch {
 
 impl Batch {
     pub fn run(&self) -> Result {
+        eprintln!("Batch::run");
         let out = &self.out;
         let command = std::env::args().next().unwrap();
 
@@ -85,6 +86,8 @@ impl Plan {
             let status = Command::new(command)
                 .arg("run")
                 .arg("--progress")
+                .arg("--seed")
+                .arg("2024")
                 .args(self.sim.args())
                 .stdout(fs::File::create(&db)?)
                 .status()?;
