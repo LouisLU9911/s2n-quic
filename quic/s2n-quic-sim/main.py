@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+import random
 
 import torch
 import torch.nn as nn
@@ -25,6 +26,8 @@ report_dir = reports_dir / report_dir_tmpl.format(delays[3], drop_rates[1])
 dataset_path = report_dir / "formatted.csv"
 
 # Parameters
+seed = 42
+num_workers = 6
 n_features = 8
 hidden_size = 64
 n_heads = 4
@@ -34,14 +37,30 @@ context_size = 32
 window_size = context_size
 batch_size = 128
 label_column = "congestion_window"
-num_epochs = 1
+num_epochs = 10
+
+
+def set_seed(seed):
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)  # if you are using multi-GPU
+
+    np.random.seed(seed)
+    random.seed(seed)
+
+    # Ensure deterministic behavior in PyTorch (may affect performance)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 
 def train(save=False):
     df = pd.read_csv(dataset_path)
     # Create the dataset and data loader
     dataset = SlidingWindowDataset(df, window_size, label_column)
-    data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    data_loader = DataLoader(
+        dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers
+    )
 
     # Assuming you have a model defined as 'model'
     model = QCCT(
@@ -89,12 +108,14 @@ def train(save=False):
 
     if save:
         model.eval()
-        example = torch.rand(1, context_size, 8)
+        example = torch.rand(1, context_size, 8).to(device)
         traced_script_module = torch.jit.trace(model, example)
         traced_script_module.save("model.pt")
 
 
 def main():
+    # Set the seed
+    set_seed(seed)
     train(save=True)
 
 
