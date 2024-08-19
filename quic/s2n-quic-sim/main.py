@@ -55,6 +55,7 @@ def train(save=False):
 
     # Check if a GPU is available
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"device: {device}")
 
     # Move model to GPU
     model.to(device)
