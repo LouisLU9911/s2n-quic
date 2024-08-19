@@ -83,6 +83,13 @@ def format_line(line):
     return record
 
 
+def ts2ms(timestamp: str) -> int:
+    h, m, s = timestamp.split(":")
+    m = int(m) + int(h) * 60
+    ms = round(float(s) * 1000) + m * 60 * 1000
+    return ms
+
+
 def format_stderr(seed, delay, drop_rate, save=False):
     # Define the path to the reports directory
     reports_dir = Path(CWD) / reports_dir_tmpl.format(seed)
@@ -104,9 +111,16 @@ def format_stderr(seed, delay, drop_rate, save=False):
     filtered_lines = filter_out(filtered_lines, "on_rtt_update")
     records = list(map(format_line, filtered_lines))
     df = pd.DataFrame.from_records(records)
+    df["timestamp"] = df["timestamp"].apply(ts2ms)
     df_one_hot = pd.get_dummies(df, columns=["event"], dtype=int)
+    # Specify the column to move
+    col_to_move = "congestion_window"
+    # Move the column to the end
+    df_one_hot = df_one_hot[
+        [col for col in df_one_hot if col != col_to_move] + [col_to_move]
+    ]
     if save:
-        df_one_hot.to_csv(report_dir / "formatted.csv")
+        df_one_hot.to_csv(report_dir / "formatted.csv", index=False)
     return df_one_hot
 
 
