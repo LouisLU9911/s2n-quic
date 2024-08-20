@@ -17,8 +17,7 @@ reports_dir_tmpl = "reports_seed_{}"
 report_dir_tmpl = "delay_{}_drop_{}"
 
 cwd = os.getcwd()
-# Define the path to the reports directory
-reports_dir = Path(cwd) / reports_dir_tmpl.format(42)
+
 # Define lists for delay and drop_rate values
 delays = ["5ms", "50ms", "100ms", "200ms", "500ms"]
 drop_rates = [0.01, 0.05, 0.1, 0.2, 0.3]
@@ -29,8 +28,6 @@ paths = [
     (delays[4], drop_rates[2]),
 ]
 
-report_dirs = [reports_dir / report_dir_tmpl.format(*path) for path in paths]
-dataset_paths = [report_dir / "formatted.csv" for report_dir in report_dirs]
 
 # Parameters
 seed = 42
@@ -87,11 +84,18 @@ def train(save=False):
     optimizer = optim.Adam(model.parameters(), lr=0.001)
 
     for epoch in range(num_epochs):
+        # train
         model.train()
         running_loss = 0.0
         data_loader_len = 0
-        for dataset_path in dataset_paths:
-            print(f"Training using {dataset_path}...")
+
+        # Define the path to the reports directory
+        reports_dir = Path(cwd) / reports_dir_tmpl.format(42)
+        report_dirs = [reports_dir / report_dir_tmpl.format(*path) for path in paths]
+        dataset_paths = [report_dir / "formatted.csv" for report_dir in report_dirs]
+
+        print("Train...")
+        for path, dataset_path in zip(paths, dataset_paths):
             df = pd.read_csv(dataset_path)
             # Create the dataset and data loader
             dataset = SlidingWindowDataset(df, window_size, label_column)
@@ -99,7 +103,9 @@ def train(save=False):
                 dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers
             )
             for features, label in tqdm(
-                data_loader, desc=f"Epoch {epoch+1}/{num_epochs}", unit="batch"
+                data_loader,
+                desc=f"Epoch[{epoch+1}/{num_epochs}] Path[delay:{path[0]},drop_rate:{path[1]}]",
+                unit="batch",
             ):
                 features, label = features.to(device), label.to(device)
                 # print(features.shape, label.shape)
@@ -115,7 +121,38 @@ def train(save=False):
 
             data_loader_len += len(data_loader)
         avg_loss = running_loss / data_loader_len
-        print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {avg_loss:.4f}")
+        print(f"Epoch [{epoch+1}/{num_epochs}], Train Loss: {avg_loss:.4f}")
+
+        # validation
+        print("Eval...")
+        model.eval()
+        running_loss = 0.0
+        data_loader_len = 0
+
+        reports_dir = Path(cwd) / reports_dir_tmpl.format(2024)
+        report_dirs = [reports_dir / report_dir_tmpl.format(*path) for path in paths]
+        dataset_paths = [report_dir / "formatted.csv" for report_dir in report_dirs]
+        for dataset_path in dataset_paths:
+            df = pd.read_csv(dataset_path)
+            # Create the dataset and data loader
+            dataset = SlidingWindowDataset(df, window_size, label_column)
+            data_loader = DataLoader(
+                dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers
+            )
+            for features, label in tqdm(
+                data_loader,
+                desc=f"Epoch[{epoch+1}/{num_epochs}] Path[delay:{path[0]}, drop_rate:{path[1]}]",
+                unit="batch",
+            ):
+                features, label = features.to(device), label.to(device)
+                # print(features.shape, label.shape)
+                outputs = model(features)
+                # print(outputs.shape)
+                loss = criterion(outputs, label)
+                running_loss += loss.item()
+            data_loader_len += len(data_loader)
+        avg_loss = running_loss / data_loader_len
+        print(f"Epoch [{epoch+1}/{num_epochs}], Validation Loss: {avg_loss:.4f}")
 
     if save:
         model.eval()
