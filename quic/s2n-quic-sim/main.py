@@ -22,8 +22,15 @@ reports_dir = Path(cwd) / reports_dir_tmpl.format(42)
 # Define lists for delay and drop_rate values
 delays = ["5ms", "50ms", "100ms", "200ms", "500ms"]
 drop_rates = [0.01, 0.05, 0.1, 0.2, 0.3]
-report_dir = reports_dir / report_dir_tmpl.format(delays[3], drop_rates[1])
-dataset_path = report_dir / "formatted.csv"
+
+paths = [
+    (delays[2], drop_rates[0]),
+    (delays[3], drop_rates[1]),
+    (delays[4], drop_rates[2]),
+]
+
+report_dirs = [reports_dir / report_dir_tmpl.format(*path) for path in paths]
+dataset_paths = [report_dir / "formatted.csv" for report_dir in report_dirs]
 
 # Parameters
 seed = 42
@@ -55,12 +62,6 @@ def set_seed(seed):
 
 
 def train(save=False):
-    df = pd.read_csv(dataset_path)
-    # Create the dataset and data loader
-    dataset = SlidingWindowDataset(df, window_size, label_column)
-    data_loader = DataLoader(
-        dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers
-    )
 
     # Assuming you have a model defined as 'model'
     model = QCCT(
@@ -88,22 +89,32 @@ def train(save=False):
     for epoch in range(num_epochs):
         model.train()
         running_loss = 0.0
-        for features, label in tqdm(
-            data_loader, desc=f"Epoch {epoch+1}/{num_epochs}", unit="batch"
-        ):
-            features, label = features.to(device), label.to(device)
-            # print(features.shape, label.shape)
+        data_loader_len = 0
+        for dataset_path in dataset_paths:
+            print(f"Training using {dataset_path}...")
+            df = pd.read_csv(dataset_path)
+            # Create the dataset and data loader
+            dataset = SlidingWindowDataset(df, window_size, label_column)
+            data_loader = DataLoader(
+                dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers
+            )
+            for features, label in tqdm(
+                data_loader, desc=f"Epoch {epoch+1}/{num_epochs}", unit="batch"
+            ):
+                features, label = features.to(device), label.to(device)
+                # print(features.shape, label.shape)
 
-            optimizer.zero_grad()
-            outputs = model(features)
-            # print(outputs.shape)
-            loss = criterion(outputs, label)
-            loss.backward()
-            optimizer.step()
+                optimizer.zero_grad()
+                outputs = model(features)
+                # print(outputs.shape)
+                loss = criterion(outputs, label)
+                loss.backward()
+                optimizer.step()
 
-            running_loss += loss.item()
+                running_loss += loss.item()
 
-        avg_loss = running_loss / len(data_loader)
+            data_loader_len += len(data_loader)
+        avg_loss = running_loss / data_loader_len
         print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {avg_loss:.4f}")
 
     if save:
