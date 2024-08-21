@@ -58,8 +58,55 @@ def set_seed(seed):
     torch.backends.cudnn.benchmark = False
 
 
-def train(save=False):
+def get_data_loader(dataset_path):
+    df = pd.read_csv(dataset_path)
+    # Create the dataset and data loader
+    dataset = SlidingWindowDataset(df, window_size, label_column)
+    data_loader = DataLoader(
+        dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers
+    )
+    return data_loader
 
+
+def run(model, device, optimizer, criterion, action: str, epoch: int, seeds: list):
+    if action == "train":
+        model.train()
+    else:
+        model.eval()
+    running_loss = 0.0
+    data_loader_len = 0
+
+    for seed in seeds:
+        print(f"Running {action}[seed:{seed}]...")
+        reports_dir = Path(cwd) / reports_dir_tmpl.format(seed)
+        report_dirs = [reports_dir / report_dir_tmpl.format(*path) for path in paths]
+        dataset_paths = [report_dir / "formatted.csv" for report_dir in report_dirs]
+
+        for path, dataset_path in zip(paths, dataset_paths):
+            data_loader = get_data_loader(dataset_path)
+            data_loader_len += len(data_loader)
+            for features, label in tqdm(
+                data_loader,
+                desc=f"Epoch[{epoch+1}/{num_epochs}] Path[seed:{seed},delay:{path[0]},drop_rate:{path[1]}]",
+                unit="batch",
+            ):
+                features, label = features.to(device), label.to(device)
+                if action == "train":
+                    optimizer.zero_grad()
+                    outputs = model(features)
+                    loss = criterion(outputs, label)
+                    loss.backward()
+                    optimizer.step()
+                else:
+                    with torch.no_grad():
+                        outputs = model(features)
+                        loss = criterion(outputs, label)
+                running_loss += loss.item()
+        avg_loss = running_loss / data_loader_len
+        print(f"Epoch [{epoch+1}/{num_epochs}], Train Loss: {avg_loss:.4f}")
+
+
+def train_and_test(save=False):
     # Assuming you have a model defined as 'model'
     model = QCCT(
         n_features=n_features,
@@ -85,74 +132,10 @@ def train(save=False):
 
     for epoch in range(num_epochs):
         # train
-        model.train()
-        running_loss = 0.0
-        data_loader_len = 0
-
-        # Define the path to the reports directory
-        reports_dir = Path(cwd) / reports_dir_tmpl.format(42)
-        report_dirs = [reports_dir / report_dir_tmpl.format(*path) for path in paths]
-        dataset_paths = [report_dir / "formatted.csv" for report_dir in report_dirs]
-
-        print("Train...")
-        for path, dataset_path in zip(paths, dataset_paths):
-            df = pd.read_csv(dataset_path)
-            # Create the dataset and data loader
-            dataset = SlidingWindowDataset(df, window_size, label_column)
-            data_loader = DataLoader(
-                dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers
-            )
-            for features, label in tqdm(
-                data_loader,
-                desc=f"Epoch[{epoch+1}/{num_epochs}] Path[delay:{path[0]},drop_rate:{path[1]}]",
-                unit="batch",
-            ):
-                features, label = features.to(device), label.to(device)
-                # print(features.shape, label.shape)
-
-                optimizer.zero_grad()
-                outputs = model(features)
-                # print(outputs.shape)
-                loss = criterion(outputs, label)
-                loss.backward()
-                optimizer.step()
-
-                running_loss += loss.item()
-
-            data_loader_len += len(data_loader)
-        avg_loss = running_loss / data_loader_len
-        print(f"Epoch [{epoch+1}/{num_epochs}], Train Loss: {avg_loss:.4f}")
-
+        run(model, device, optimizer, criterion, "train", epoch, seeds=[42, 2024])
         # validation
-        print("Eval...")
-        model.eval()
-        running_loss = 0.0
-        data_loader_len = 0
-
-        reports_dir = Path(cwd) / reports_dir_tmpl.format(2024)
-        report_dirs = [reports_dir / report_dir_tmpl.format(*path) for path in paths]
-        dataset_paths = [report_dir / "formatted.csv" for report_dir in report_dirs]
-        for dataset_path in dataset_paths:
-            df = pd.read_csv(dataset_path)
-            # Create the dataset and data loader
-            dataset = SlidingWindowDataset(df, window_size, label_column)
-            data_loader = DataLoader(
-                dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers
-            )
-            for features, label in tqdm(
-                data_loader,
-                desc=f"Epoch[{epoch+1}/{num_epochs}] Path[delay:{path[0]}, drop_rate:{path[1]}]",
-                unit="batch",
-            ):
-                features, label = features.to(device), label.to(device)
-                # print(features.shape, label.shape)
-                outputs = model(features)
-                # print(outputs.shape)
-                loss = criterion(outputs, label)
-                running_loss += loss.item()
-            data_loader_len += len(data_loader)
-        avg_loss = running_loss / data_loader_len
-        print(f"Epoch [{epoch+1}/{num_epochs}], Validation Loss: {avg_loss:.4f}")
+        run(model, device, optimizer, criterion, "val", epoch, seeds=[2023])
+        # test
 
     if save:
         model.eval()
@@ -164,7 +147,7 @@ def train(save=False):
 def main():
     # Set the seed
     set_seed(seed)
-    train(save=True)
+    train_and_test(save=True)
 
 
 if __name__ == "__main__":
