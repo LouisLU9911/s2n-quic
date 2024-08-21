@@ -132,9 +132,9 @@ def train_and_test(save=False):
 
     for epoch in range(num_epochs):
         # train
-        run(model, device, optimizer, criterion, "train", epoch, seeds=[42, 2024])
+        run(model, device, optimizer, criterion, "train", epoch, seeds=[42, 2024, 2023])
         # validation
-        run(model, device, optimizer, criterion, "val", epoch, seeds=[2023])
+        run(model, device, optimizer, criterion, "val", epoch, seeds=[10086])
         # test
 
     if save:
