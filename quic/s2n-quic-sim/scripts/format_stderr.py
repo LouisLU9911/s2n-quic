@@ -12,7 +12,7 @@ CWD = os.getcwd()
 reports_dir_tmpl = "reports_seed_{}"
 report_dir_tmpl = "delay_{}_drop_{}"
 
-seeds = [42, 2024]
+seeds = [42, 2023, 2024]
 delays = ["5ms", "50ms", "100ms", "200ms", "500ms"]
 drop_rates = [0.01, 0.05, 0.1, 0.2, 0.3]
 columns = [
