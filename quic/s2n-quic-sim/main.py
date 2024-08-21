@@ -103,7 +103,7 @@ def run(model, device, optimizer, criterion, action: str, epoch: int, seeds: lis
                         loss = criterion(outputs, label)
                 running_loss += loss.item()
     avg_loss = running_loss / data_loader_len
-    print(f"Epoch [{epoch+1}/{num_epochs}], Train Loss: {avg_loss:.4f}")
+    print(f"Epoch [{epoch+1}/{num_epochs}], {action} Loss: {avg_loss:.4f}")
 
 
 def train_and_test(save=False):
