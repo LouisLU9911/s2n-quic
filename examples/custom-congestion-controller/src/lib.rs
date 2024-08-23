@@ -1,6 +1,11 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+pub static MODEL_CPU_FILE: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/src/model_cpu.pt"
+))
+
 /// Example implementation of a custom congestion controller algorithm.
 ///
 /// This example serves only to illustrate the integration points for incorporating a custom
@@ -15,6 +20,61 @@ pub mod custom_congestion_controller {
             CongestionController, Publisher, RandomGenerator, RttEstimator, Timestamp,
         },
     };
+    use tch::{kind, Tensor, Kind};
+
+    pub struct FifoQueue {
+        buffer: Vec<Vec<f32>>,  // Vec to hold events, each event is a Vec<f32>
+        capacity: usize,
+        head: usize,
+        tail: usize,
+        size: usize,
+    }
+    
+    impl FifoQueue {
+        // Create a new FIFO queue with a given capacity
+        pub fn new(capacity: usize) -> Self {
+            FifoQueue {
+                buffer: vec![Vec::new(); capacity],
+                capacity,
+                head: 0,
+                tail: 0,
+                size: 0,
+            }
+        }
+    
+        // Add an event to the queue
+        pub fn enqueue(&mut self, event: Vec<f32>) {
+            if self.size == self.capacity {
+                // Overwrite the oldest event if the buffer is full
+                self.buffer[self.tail] = event;
+                self.tail = (self.tail + 1) % self.capacity;
+                self.head = self.tail; // Move head when overwriting
+            } else {
+                self.buffer[self.tail] = event;
+                self.tail = (self.tail + 1) % self.capacity;
+                self.size += 1;
+            }
+        }
+    
+        // Convert the entire queue to a Tensor
+        pub fn to_tensor(&self) -> Tensor {
+            let events: Vec<f32> = self
+                .buffer
+                .iter()
+                .take(self.size)  // Only take the filled part of the buffer
+                .flatten()        // Flatten Vec<Vec<f32>> into Vec<f32>
+                .cloned()         // Clone the values to avoid borrowing issues
+                .collect();
+    
+            let num_features = if self.size > 0 {
+                self.buffer[0].len()
+            } else {
+                0
+            };
+    
+            Tensor::of_slice(&events).view((self.size as i64, num_features as i64))
+        }
+    }
 
     /// Define a congestion controller containing any state you wish to track.
     /// For this example, we track the size of the congestion window in bytes and
@@ -23,6 +83,10 @@ pub mod custom_congestion_controller {
     pub struct MyCongestionController {
         congestion_window: u32,
         bytes_in_flight: u32,
+        model: tch::CModule,
+        events: FifoQueue,
+        // timestamp,lost_bytes,bytes_acknowledged,bytes_in_filght,event_on_ack,event_on_packet_lost,event_on_packet_sent,congestion_window
+        // 100,0,0,191,0,0,1,12000
     }
 
     /// The following is a simple implementation of the `CongestionController` trait
@@ -141,10 +205,15 @@ pub mod custom_congestion_controller {
             &mut self,
             path_info: congestion_controller::PathInfo,
         ) -> Self::CongestionController {
+            let model = tch::CModule::load(MODEL_CPU_FILE)?;
+            let context_size = 64;
+            let events = FifoQueue::new(context_size);
             MyCongestionController {
                 // Specify the initial congestion window
                 congestion_window: 10 * path_info.max_datagram_size as u32,
                 bytes_in_flight: 0,
+                model: model,
+                events: events,
             }
         }
     }
