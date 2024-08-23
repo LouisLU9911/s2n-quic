@@ -31,17 +31,17 @@ paths = [
 
 # Parameters
 seed = 42
-num_workers = 6
+num_workers = 8
 n_features = 8
-hidden_size = 64
+hidden_size = 128
 n_heads = 4
 n_layers = 4
-expand_size = 128
-context_size = 32
+expand_size = 256
+context_size = 64
 window_size = context_size
 batch_size = 128
 label_column = "congestion_window"
-num_epochs = 10
+num_epochs = 30
 
 
 def set_seed(seed):
