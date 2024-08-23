@@ -41,7 +41,7 @@ context_size = 64
 window_size = context_size
 batch_size = 128
 label_column = "congestion_window"
-num_epochs = 30
+num_epochs = 20
 
 
 def set_seed(seed):
@@ -132,13 +132,20 @@ def train_and_test(save=False):
 
     for epoch in range(num_epochs):
         # train
-        run(model, device, optimizer, criterion, "train", epoch, seeds=[42, 2024, 2023])
+        run(model, device, optimizer, criterion, "train", epoch, seeds=[42, 2023, 2024])
         # validation
         run(model, device, optimizer, criterion, "val", epoch, seeds=[10086])
         # test
 
     if save:
         model.eval()
+        # CPU
+        model.to("cpu")
+        example = torch.rand(1, context_size, 8).to("cpu")
+        traced_script_module = torch.jit.trace(model, example)
+        traced_script_module.save("model_cpu.pt")
+        # CUDA
+        model.to(device)
         example = torch.rand(1, context_size, 8).to(device)
         traced_script_module = torch.jit.trace(model, example)
         traced_script_module.save("model.pt")
