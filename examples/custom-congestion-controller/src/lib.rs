@@ -1,11 +1,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-pub static MODEL_CPU_FILE: &str = include_str!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/src/model_cpu.pt"
-))
-
 /// Example implementation of a custom congestion controller algorithm.
 ///
 /// This example serves only to illustrate the integration points for incorporating a custom
@@ -21,6 +16,8 @@ pub mod custom_congestion_controller {
         },
     };
     use tch::{kind, Tensor, Kind};
+    use std::fmt;
+    use std::sync::Arc;
 
     pub struct FifoQueue {
         buffer: Vec<Vec<f32>>,  // Vec to hold events, each event is a Vec<f32>
@@ -72,7 +69,53 @@ pub mod custom_congestion_controller {
                 0
             };
     
-            Tensor::of_slice(&events).view((self.size as i64, num_features as i64))
+            Tensor::from_slice(&events).view((self.size as i64, num_features as i64))
+        }
+    }
+
+    impl fmt::Debug for FifoQueue {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            f.debug_struct("FifoQueue")
+                .field("buffer", &self.buffer)
+                .field("capacity", &self.capacity)
+                .field("head", &self.head)
+                .field("tail", &self.tail)
+                .field("size", &self.size)
+                .finish()
+        }
+    }
+
+    impl Clone for FifoQueue {
+        fn clone(&self) -> Self {
+            FifoQueue {
+                buffer: self.buffer.clone(),  // Clone the buffer Vec
+                capacity: self.capacity,      // usize is Copy, so no need for `.clone()`
+                head: self.head,              // usize is Copy
+                tail: self.tail,              // usize is Copy
+                size: self.size,              // usize is Copy
+            }
+        }
+    }
+
+    struct CloneCModule {
+        model_name: String,
+        inner: Arc<tch::CModule>,
+    }
+
+    impl Clone for CloneCModule {
+        fn clone(&self) -> Self {
+            CloneCModule {
+                model_name: self.model_name.clone(),
+                inner: Arc::clone(&self.inner),
+            }
+        }
+    }
+
+    impl fmt::Debug for CloneCModule {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            f.debug_struct("CloneCModule")
+                .field("model_name", &self.model_name)
+                .finish()
         }
     }
 
@@ -83,7 +126,7 @@ pub mod custom_congestion_controller {
     pub struct MyCongestionController {
         congestion_window: u32,
         bytes_in_flight: u32,
-        model: tch::CModule,
+        model: CloneCModule,
         events: FifoQueue,
         // timestamp,lost_bytes,bytes_acknowledged,bytes_in_filght,event_on_ack,event_on_packet_lost,event_on_packet_sent,congestion_window
         // 100,0,0,191,0,0,1,12000
@@ -205,8 +248,14 @@ pub mod custom_congestion_controller {
             &mut self,
             path_info: congestion_controller::PathInfo,
         ) -> Self::CongestionController {
-            let model = tch::CModule::load(MODEL_CPU_FILE)?;
+            let model_filename = "model_cpu.pt";
+            let inner_model = tch::CModule::load(model_filename).unwrap();
+            let model = CloneCModule {
+                model_name: model_filename.to_string(),
+                inner: Arc::new(inner_model),
+            };
             let context_size = 64;
+
             let events = FifoQueue::new(context_size);
             MyCongestionController {
                 // Specify the initial congestion window
