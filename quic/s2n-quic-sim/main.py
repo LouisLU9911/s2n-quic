@@ -137,18 +137,22 @@ def train_and_test(save=False):
         run(model, device, optimizer, criterion, "val", epoch, seeds=[10086])
         # test
 
-    if save:
-        model.eval()
-        # CPU
-        model.to("cpu")
-        example = torch.rand(1, context_size, 8).to("cpu")
-        traced_script_module = torch.jit.trace(model, example)
-        traced_script_module.save("model_cpu.pt")
-        # CUDA
-        model.to(device)
-        example = torch.rand(1, context_size, 8).to(device)
-        traced_script_module = torch.jit.trace(model, example)
-        traced_script_module.save("model.pt")
+        if save:
+            model.eval()
+            # CPU
+            model.to("cpu")
+            example = torch.rand(1, context_size, 8).to("cpu")
+            traced_script_module = torch.jit.trace(model, example)
+            model_path = Path(cwd) / "checkpoints" / f"model_cpu_{epoch}.pt"
+            traced_script_module.save(model_path)
+            print(f"model:{model_path} saved!")
+            # CUDA
+            model.to(device)
+            example = torch.rand(1, context_size, 8).to(device)
+            traced_script_module = torch.jit.trace(model, example)
+            model_path = Path(cwd) / "checkpoints" / f"model_{epoch}.pt"
+            traced_script_module.save(model_path)
+            print(f"model:{model_path} saved!")
 
 
 def main():

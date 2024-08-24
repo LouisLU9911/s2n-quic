@@ -98,8 +98,8 @@ pub mod custom_congestion_controller {
     }
 
     fn next_congestion_window(input: Tensor) -> Tensor {
-        eprintln!("input size: {:?}", input.size());
-        input.print();
+        // eprintln!("input size: {:?}", input.size());
+        // input.print();
         let model_filename = "model_cpu.pt";
         let model = tch::CModule::load(model_filename).unwrap();
         let output = input.apply(&model);
