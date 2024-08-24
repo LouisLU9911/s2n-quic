@@ -94,6 +94,14 @@ impl Timestamp {
             .unwrap_or_default()
     }
 
+    #[inline]
+    pub fn to_ms(self) -> f32 {
+        let duration = self.as_duration_impl();
+        let micros = duration.subsec_micros() as u64;
+        let ms = duration.as_secs() * 1000 + micros / 1000;
+        ms as f32
+    }
+
     /// Creates a `Timestamp` from a `Duration` since the time source's epoch.
     /// This will treat the duration as an absolute point in time.
     ///
