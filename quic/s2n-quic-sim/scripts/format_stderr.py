@@ -20,7 +20,7 @@ columns = [
     "timestamp",
     "lost_bytes",
     "bytes_acknowledged",
-    "bytes_in_filght",
+    "bytes_in_flight",
     "congestion_window",
 ]
 
