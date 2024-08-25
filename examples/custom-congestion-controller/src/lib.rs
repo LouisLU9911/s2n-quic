@@ -217,7 +217,7 @@ pub mod custom_congestion_controller {
             let next_cwnd = output.double_value(&[0, 0]) as f32;
             self.events.modify_last_event_final_item(next_cwnd);
             self.congestion_window = next_cwnd as u32;
-            eprintln!("on_packet_sent: {next_cwnd}");
+            // eprintln!("on_packet_sent: {next_cwnd}");
         }
 
         fn on_rtt_update<Pub: Publisher>(
@@ -252,7 +252,7 @@ pub mod custom_congestion_controller {
             let next_cwnd = output.double_value(&[0, 0]) as f32;
             self.events.modify_last_event_final_item(next_cwnd);
             self.congestion_window = next_cwnd as u32;
-            eprintln!("on_ack: {next_cwnd}");
+            // eprintln!("on_ack: {next_cwnd}");
         }
 
         fn on_packet_lost<Pub: Publisher>(
@@ -283,7 +283,7 @@ pub mod custom_congestion_controller {
             let next_cwnd = output.double_value(&[0, 0]) as f32;
             self.events.modify_last_event_final_item(next_cwnd);
             self.congestion_window = next_cwnd as u32;
-            eprintln!("on_packet_lost: {next_cwnd}");
+            // eprintln!("on_packet_lost: {next_cwnd}");
         }
 
         fn on_explicit_congestion<Pub: Publisher>(
