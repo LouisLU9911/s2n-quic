@@ -72,6 +72,24 @@ pub mod custom_congestion_controller {
 
             Tensor::from_slice(&events).view((self.size as i64, num_features as i64))
         }
+
+        pub fn modify_last_event_final_item(&mut self, new_value: f32) {
+            if self.size > 0 {
+                // Calculate the index of the last event
+                let last_index = if self.tail == 0 {
+                    self.capacity - 1
+                } else {
+                    self.tail - 1
+                };
+
+                // Modify the last element of the last event
+                if let Some(last_event) = self.buffer.get_mut(last_index) {
+                    if let Some(last_element) = last_event.last_mut() {
+                        *last_element = new_value;
+                    }
+                }
+            }
+        }
     }
 
     impl fmt::Debug for FifoQueue {
@@ -97,14 +115,6 @@ pub mod custom_congestion_controller {
             }
         }
     }
-
-    //fn next_congestion_window(input: Tensor) -> Tensor {
-    //    let model_path = "model_cpu.pt";
-    //    // let model = tch::CModule::load(model_path).unwrap();
-    //    let model = CModule::load_on_device(model_path, device).expect("Failed to load the model");
-    //    let output = input.apply(&model);
-    //    output
-    //}
 
     struct InferenceEngine {
         model: Arc<CModule>,
@@ -203,9 +213,12 @@ pub mod custom_congestion_controller {
             let event: Vec<f32> = Vec::from([ms, 0.0, 0.0, bif_f32, 0.0, 0.0, 1.0, 0.0]);
             self.events.enqueue(event);
             let input = self.events.to_tensor().unsqueeze(0);
+            input.print();
             let output = self.inference_engine.run_inference(input);
-            eprintln!("{output}");
-            // TODO: update congestion window
+            let next_cwnd = output.double_value(&[0, 0]) as f32;
+            self.events.modify_last_event_final_item(next_cwnd);
+            self.congestion_window = next_cwnd as u32;
+            eprintln!("{next_cwnd}");
         }
 
         fn on_rtt_update<Pub: Publisher>(
