@@ -207,18 +207,17 @@ pub mod custom_congestion_controller {
             publisher: &mut Pub,
         ) -> Self::PacketInfo {
             self.bytes_in_flight += sent_bytes as u32;
-            let ms = time_sent.to_ms();
             // timestamp,lost_bytes,bytes_acknowledged,bytes_in_flight,event_on_ack,event_on_packet_lost,event_on_packet_sent,congestion_window
-            let bif_f32 = self.bytes_in_flight as f32;
-            let event: Vec<f32> = Vec::from([ms, 0.0, 0.0, bif_f32, 0.0, 0.0, 1.0, 0.0]);
+            let ms = time_sent.to_ms();
+            let bytes_in_flight_f32 = self.bytes_in_flight as f32;
+            let event: Vec<f32> = Vec::from([ms, 0.0, 0.0, bytes_in_flight_f32, 0.0, 0.0, 1.0, 0.0]);
             self.events.enqueue(event);
             let input = self.events.to_tensor().unsqueeze(0);
-            input.print();
             let output = self.inference_engine.run_inference(input);
             let next_cwnd = output.double_value(&[0, 0]) as f32;
             self.events.modify_last_event_final_item(next_cwnd);
             self.congestion_window = next_cwnd as u32;
-            eprintln!("{next_cwnd}");
+            eprintln!("on_packet_sent: {next_cwnd}");
         }
 
         fn on_rtt_update<Pub: Publisher>(
@@ -242,9 +241,18 @@ pub mod custom_congestion_controller {
             publisher: &mut Pub,
         ) {
             self.bytes_in_flight -= bytes_acknowledged as u32;
-            self.congestion_window += bytes_acknowledged as u32;
             // timestamp,lost_bytes,bytes_acknowledged,bytes_in_flight,event_on_ack,event_on_packet_lost,event_on_packet_sent,congestion_window
-            // TODO: update congestion window
+            let ms = ack_receive_time.to_ms();
+            let bytes_in_flight_f32 = self.bytes_in_flight as f32;
+            let bytes_acknowledged_f32 = bytes_acknowledged as f32;
+            let event: Vec<f32> = Vec::from([ms, 0.0, bytes_acknowledged_f32, bytes_in_flight_f32, 1.0, 0.0, 0.0, 0.0]);
+            self.events.enqueue(event);
+            let input = self.events.to_tensor().unsqueeze(0);
+            let output = self.inference_engine.run_inference(input);
+            let next_cwnd = output.double_value(&[0, 0]) as f32;
+            self.events.modify_last_event_final_item(next_cwnd);
+            self.congestion_window = next_cwnd as u32;
+            eprintln!("on_ack: {next_cwnd}");
         }
 
         fn on_packet_lost<Pub: Publisher>(
@@ -264,9 +272,18 @@ pub mod custom_congestion_controller {
             // occur once for the initial lost packet, and subsequent lost packets would not lead to
             // further reduction.
             self.bytes_in_flight -= lost_bytes;
-            self.congestion_window = (self.congestion_window as f32 * 0.5) as u32;
             // timestamp,lost_bytes,bytes_acknowledged,bytes_in_flight,event_on_ack,event_on_packet_lost,event_on_packet_sent,congestion_window
-            // TODO: update congestion window
+            let ms = timestamp.to_ms();
+            let bytes_in_flight_f32 = self.bytes_in_flight as f32;
+            let lost_bytes_f32 = lost_bytes as f32;
+            let event: Vec<f32> = Vec::from([ms, lost_bytes_f32, 0.0, bytes_in_flight_f32, 0.0, 1.0, 0.0, 0.0]);
+            self.events.enqueue(event);
+            let input = self.events.to_tensor().unsqueeze(0);
+            let output = self.inference_engine.run_inference(input);
+            let next_cwnd = output.double_value(&[0, 0]) as f32;
+            self.events.modify_last_event_final_item(next_cwnd);
+            self.congestion_window = next_cwnd as u32;
+            eprintln!("on_packet_lost: {next_cwnd}");
         }
 
         fn on_explicit_congestion<Pub: Publisher>(
