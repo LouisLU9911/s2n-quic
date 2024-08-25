@@ -15,18 +15,19 @@ pub mod custom_congestion_controller {
             CongestionController, Publisher, RandomGenerator, RttEstimator, Timestamp,
         },
     };
-    use tch::{kind, Tensor, Kind};
     use std::fmt;
     use std::sync::Arc;
+    use tch::{kind, Kind, Tensor};
+    use tch::{no_grad, CModule, Device};
 
     pub struct FifoQueue {
-        buffer: Vec<Vec<f32>>,  // Vec to hold events, each event is a Vec<f32>
+        buffer: Vec<Vec<f32>>, // Vec to hold events, each event is a Vec<f32>
         capacity: usize,
         head: usize,
         tail: usize,
         size: usize,
     }
-    
+
     impl FifoQueue {
         // Create a new FIFO queue with a given capacity
         pub fn new(capacity: usize) -> Self {
@@ -38,7 +39,7 @@ pub mod custom_congestion_controller {
                 size: capacity,
             }
         }
-    
+
         // Add an event to the queue
         pub fn enqueue(&mut self, event: Vec<f32>) {
             if self.size == self.capacity {
@@ -52,23 +53,23 @@ pub mod custom_congestion_controller {
                 self.size += 1;
             }
         }
-    
+
         // Convert the entire queue to a Tensor
         pub fn to_tensor(&self) -> Tensor {
             let events: Vec<f32> = self
                 .buffer
                 .iter()
-                .take(self.size)  // Only take the filled part of the buffer
-                .flatten()        // Flatten Vec<Vec<f32>> into Vec<f32>
-                .cloned()         // Clone the values to avoid borrowing issues
+                .take(self.size) // Only take the filled part of the buffer
+                .flatten() // Flatten Vec<Vec<f32>> into Vec<f32>
+                .cloned() // Clone the values to avoid borrowing issues
                 .collect();
-    
+
             let num_features = if self.size > 0 {
                 self.buffer[0].len()
             } else {
                 0
             };
-    
+
             Tensor::from_slice(&events).view((self.size as i64, num_features as i64))
         }
     }
@@ -88,22 +89,66 @@ pub mod custom_congestion_controller {
     impl Clone for FifoQueue {
         fn clone(&self) -> Self {
             FifoQueue {
-                buffer: self.buffer.clone(),  // Clone the buffer Vec
-                capacity: self.capacity,      // usize is Copy, so no need for `.clone()`
-                head: self.head,              // usize is Copy
-                tail: self.tail,              // usize is Copy
-                size: self.size,              // usize is Copy
+                buffer: self.buffer.clone(), // Clone the buffer Vec
+                capacity: self.capacity,     // usize is Copy, so no need for `.clone()`
+                head: self.head,             // usize is Copy
+                tail: self.tail,             // usize is Copy
+                size: self.size,             // usize is Copy
             }
         }
     }
 
-    fn next_congestion_window(input: Tensor) -> Tensor {
-        // eprintln!("input size: {:?}", input.size());
-        // input.print();
-        let model_filename = "model_cpu.pt";
-        let model = tch::CModule::load(model_filename).unwrap();
-        let output = input.apply(&model);
-        output
+    //fn next_congestion_window(input: Tensor) -> Tensor {
+    //    let model_path = "model_cpu.pt";
+    //    // let model = tch::CModule::load(model_path).unwrap();
+    //    let model = CModule::load_on_device(model_path, device).expect("Failed to load the model");
+    //    let output = input.apply(&model);
+    //    output
+    //}
+
+    struct InferenceEngine {
+        model: Arc<CModule>,
+        model_name: String,
+    }
+
+    impl Clone for InferenceEngine {
+        fn clone(&self) -> Self {
+            InferenceEngine {
+                model: Arc::clone(&self.model),
+                model_name: self.model_name.clone(),
+            }
+        }
+    }
+
+    impl fmt::Debug for InferenceEngine {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.debug_struct("InferenceEngine")
+                .field("model_name", &self.model_name)
+                .finish()
+        }
+    }
+
+    impl InferenceEngine {
+        fn new(model_path: &str, device: Device) -> Self {
+            let model =
+                CModule::load_on_device(model_path, device).expect("Failed to load the model");
+
+            // Extract the model's name from the path (for simplicity, using the filename)
+            let model_name = std::path::Path::new(model_path)
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or("Unknown Model")
+                .to_string();
+
+            InferenceEngine {
+                model: Arc::new(model),
+                model_name,
+            }
+        }
+
+        fn run_inference(&self, input_tensor: Tensor) -> Tensor {
+            no_grad(|| self.model.forward_ts(&[input_tensor])).expect("Failed to run inference")
+        }
     }
 
     /// Define a congestion controller containing any state you wish to track.
@@ -114,6 +159,7 @@ pub mod custom_congestion_controller {
         congestion_window: u32,
         bytes_in_flight: u32,
         events: FifoQueue,
+        inference_engine: InferenceEngine,
     }
 
     /// The following is a simple implementation of the `CongestionController` trait
@@ -157,7 +203,7 @@ pub mod custom_congestion_controller {
             let event: Vec<f32> = Vec::from([ms, 0.0, 0.0, bif_f32, 0.0, 0.0, 1.0, 0.0]);
             self.events.enqueue(event);
             let input = self.events.to_tensor().unsqueeze(0);
-            let output = next_congestion_window(input);
+            let output = self.inference_engine.run_inference(input);
             eprintln!("{output}");
             // TODO: update congestion window
         }
@@ -245,15 +291,17 @@ pub mod custom_congestion_controller {
             &mut self,
             path_info: congestion_controller::PathInfo,
         ) -> Self::CongestionController {
-            let model_filename = "model_cpu.pt";
+            let model_path = "model_cpu.pt";
             let context_size = 64;
 
             let events = FifoQueue::new(context_size);
+            let inference_engine = InferenceEngine::new(model_path, Device::Cpu);
             MyCongestionController {
                 // Specify the initial congestion window
                 congestion_window: 10 * path_info.max_datagram_size as u32,
                 bytes_in_flight: 0,
-                events: events,
+                events,
+                inference_engine,
             }
         }
     }
