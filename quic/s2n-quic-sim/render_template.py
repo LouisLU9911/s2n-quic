@@ -52,7 +52,9 @@ for seed in seeds:
     reports_dir.mkdir(exist_ok=True)
 
     # Iterate over each combination of delay and drop_rate
-    for delay, drop_rate in tqdm(paths, desc="path"):
+    for delay, drop_rate in tqdm(paths, desc=f"Processing seed {seed}", dynamic_ncols=True):
+        # Update tqdm description with the current seed, delay, and drop_rate
+        tqdm.write(f"Seed: {seed}, Delay: {delay}, Drop Rate: {drop_rate}")
         # Define context for each combination
         context = {
             "max_inflight": max_inflight,
