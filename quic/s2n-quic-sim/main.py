@@ -17,6 +17,7 @@ reports_dir_tmpl = "reports_seed_{}"
 report_dir_tmpl = "delay_{}_drop_{}"
 
 cwd = os.getcwd()
+checkpoints_dir = Path(cwd) / "checkpoints"
 
 # Define lists for delay and drop_rate values
 delays = ["5ms", "50ms", "100ms", "200ms", "500ms"]
@@ -132,10 +133,9 @@ def train_and_test(save=False):
 
     for epoch in range(num_epochs):
         # train
-        run(model, device, optimizer, criterion, "train", epoch, seeds=[42, 2023, 2024])
+        run(model, device, optimizer, criterion, "train", epoch, seeds=[42, 2023])
         # validation
-        run(model, device, optimizer, criterion, "val", epoch, seeds=[10086])
-        # test
+        run(model, device, optimizer, criterion, "val", epoch, seeds=[2024])
 
         if save:
             model.eval()
@@ -143,16 +143,20 @@ def train_and_test(save=False):
             model.to("cpu")
             example = torch.rand(1, context_size, 8).to("cpu")
             traced_script_module = torch.jit.trace(model, example)
-            model_path = Path(cwd) / "checkpoints" / f"model_cpu_{epoch}.pt"
+            checkpoints_dir.mkdir(exist_ok=True)
+            model_path = checkpoints_dir / f"model_cpu_{epoch}.pt"
             traced_script_module.save(model_path)
             print(f"model:{model_path} saved!")
             # CUDA
             model.to(device)
             example = torch.rand(1, context_size, 8).to(device)
             traced_script_module = torch.jit.trace(model, example)
-            model_path = Path(cwd) / "checkpoints" / f"model_{epoch}.pt"
+            model_path = checkpoints_dir / f"model_{epoch}.pt"
             traced_script_module.save(model_path)
             print(f"model:{model_path} saved!")
+
+    # test
+    run(model, device, optimizer, criterion, "test", epoch, seeds=[10086])
 
 
 def main():
