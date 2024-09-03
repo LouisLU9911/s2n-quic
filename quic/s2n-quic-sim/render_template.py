@@ -64,6 +64,7 @@ for seed in seeds:
             "stream_data": stream_data,
             "delay": delay,
             "drop_rate": drop_rate,
+            "seed": seed,
         }
 
         # Create a subdirectory for each combination

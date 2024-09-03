@@ -86,8 +86,6 @@ impl Plan {
             let status = Command::new(command)
                 .arg("run")
                 .arg("--progress")
-                .arg("--seed")
-                .arg("2024")
                 .args(self.sim.args())
                 .stdout(fs::File::create(&db)?)
                 .status()?;

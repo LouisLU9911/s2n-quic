@@ -115,6 +115,10 @@ config!(
         #[default = "4096"]
         stream_data: CliRange<u64>,
 
+        #[name = "seed"]
+        #[default = "12"]
+        seed: u64,
+
         #[name = "iterations"]
         #[default = "10000"]
         iterations: u64,
