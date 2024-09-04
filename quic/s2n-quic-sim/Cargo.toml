@@ -19,10 +19,11 @@ once_cell = "1"
 prost = "0.13"
 rand = "0.8"
 rayon = "1"
-s2n-quic = { path = "../s2n-quic", features = ["unstable-provider-io-testing", "provider-event-tracing"] }
+s2n-quic = { version = "1", path = "../s2n-quic", features = ["unstable-provider-io-testing", "provider-event-tracing", "unstable-congestion-controller"] }
 s2n-quic-core = { path = "../s2n-quic-core", features = ["testing"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 structopt = "0.3"
+tch = "0.17.0"
 toml = "0.7"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
