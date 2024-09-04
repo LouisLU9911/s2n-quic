@@ -1,29 +1,15 @@
 [sim]
 connections = "1"
-delay = "10ms..50ms"
-max_inflight = 10000000
+delay = "50ms..200ms"
+max_inflight = 1000
 iterations = 1000
-stream_data = 100000000
+streams = 5
+stream_data = 500000000
 
 [report.tx-packets]
 filters = ["conn.success", "conn.client"]
 x = "net.delay"
 y = "conn.tx.packets"
-
-[report.rtt-spread]
-filters = ["conn.success", "conn.client"]
-x = "net.delay"
-y = "conn.rtt-spread"
-
-[report.min-rtt]
-filters = ["conn.success", "conn.client"]
-x = "net.delay"
-y = "conn.min-rtt"
-
-[report.max-rtt]
-filters = ["conn.success", "conn.client"]
-x = "net.delay"
-y = "conn.max-rtt"
 
 [report.lost-packets]
 filters = ["conn.success", "conn.client"]
