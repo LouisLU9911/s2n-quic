@@ -1,6 +1,8 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+
+use s2n_quic_sim::custom_congestion_controller::MyCongestionControllerEndpoint;
 use super::{events, CliRange};
 use s2n_quic::{
     client::Connect,
@@ -19,6 +21,7 @@ pub fn server(handle: &Handle, events: events::Events) -> Result<SocketAddr> {
         .with_io(handle.builder().build().unwrap())?
         .with_tls((certificates::CERT_PEM, certificates::KEY_PEM))?
         .with_event((events, Tracing::default()))?
+        .with_congestion_controller(MyCongestionControllerEndpoint::default())?
         .start()?;
     let server_addr = server.local_addr()?;
 
